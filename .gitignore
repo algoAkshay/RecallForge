@@ -20,6 +20,10 @@ venv/
 .ruff_cache/
 uv.lock
 .storage/
+.cache/
+.model-cache/
+model_cache/
+huggingface/
 *.db
 *.sqlite
 *.sqlite3

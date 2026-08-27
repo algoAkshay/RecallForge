@@ -1,15 +1,18 @@
 import asyncio
 import importlib.util
+import os
 import pickle
 import sys
 import tempfile
 import types
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 
 SRC = Path(__file__).resolve().parents[1] / "src"
 DATA_SOURCE = SRC / "tools" / "data.py"
+sys.path.insert(0, str(SRC))
 
 
 class FakeDocument:
@@ -126,6 +129,17 @@ class PersistentMemoryTests(unittest.IsolatedAsyncioTestCase):
             await self._insert(path)
             self.assertTrue((path / "index.faiss").exists())
             self.assertTrue((path / "index.pkl").exists())
+
+    async def test_configured_storage_root_persists_and_reloads_faiss(self):
+        with tempfile.TemporaryDirectory() as temporary, patch.dict(
+            os.environ, {"RECALLFORGE_STORAGE_DIR": temporary}, clear=False
+        ):
+            await self._insert(None)
+            memory_path = Path(temporary) / "research_memory"
+            self.assertTrue((memory_path / "index.faiss").exists())
+            self.data.st.session_state.clear()
+            db = await self.data.fetch_model(embeddings=FakeEmbeddings())
+            self.assertIn("hash-x", self.data._reconstruct_indexed_hashes(db))
 
     async def test_restart_reloads_retrievable_vectors_and_metadata(self):
         with tempfile.TemporaryDirectory() as temporary:

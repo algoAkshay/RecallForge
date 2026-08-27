@@ -94,7 +94,7 @@ Blocking fetch and extraction work is moved off the event loop. Successful sibli
 
 ## Persistent memory and provenance
 
-Research memory persists locally in `.storage/research_memory/`. Evidence identity uses SHA-256 content hashes to avoid duplicate insertion, and durable deduplication state is reconstructed after restart. FAISS persistence includes pickle-backed metadata, so only application-owned local storage should be loaded.
+Research memory persists in `<storage-root>/research_memory/`, alongside SQLite history at `<storage-root>/chat_history.db`. The local default storage root is `.storage`; set `RECALLFORGE_STORAGE_DIR` to move both durable stores together. Evidence identity uses SHA-256 content hashes to avoid duplicate insertion, and durable deduplication state is reconstructed after restart. FAISS persistence includes pickle-backed metadata, so only application-owned local storage should be loaded.
 
 Citation identifiers are application-owned and deterministic. The synthesizer receives only valid evidence IDs; unknown IDs are removed or warned about, and the UI renders authoritative source records. Provenance integrity improves traceability, but it does not itself prove factual correctness or entailment.
 
@@ -170,9 +170,21 @@ Set `GOOGLE_API_KEY` in `.env` (or use `GEMINI_API_KEY`). On POSIX shells, activ
 | `GOOGLE_API_KEY` | Gemini credential used by the default synthesis model. |
 | `GEMINI_API_KEY` | Supported alternative Gemini credential. |
 | `MODEL` | Optional model identifier; defaults to `google_genai:gemini-3.5-flash-lite`. |
+| `RECALLFORGE_STORAGE_DIR` | Shared durable-state root; defaults to `.storage` locally and should be `/var/data` on Render. |
 | `LINKMIND_MEMORY_PATH` | Legacy backward-compatible override for the local FAISS memory path. |
 
 Use `.env.example` as the starting point. Never commit actual credentials.
+
+## Deployment
+
+Render is supported through the included [`render.yaml`](render.yaml). Use a paid, single-instance Web Service with its persistent disk mounted at `/var/data`; ephemeral deployments lose both FAISS research memory and SQLite chat history after a restart or deploy.
+
+- **Build command:** `pip install -r requirements.txt`
+- **Start command:** `python -m streamlit run src/main.py --server.address 0.0.0.0 --server.port $PORT --server.headless true`
+- **Required secret:** `GOOGLE_API_KEY` or `GEMINI_API_KEY`
+- **Storage variable:** `RECALLFORGE_STORAGE_DIR=/var/data`
+
+The MiniLM embedding model downloads into the platform's writable model cache on first use. Its weights are not stored in this repository.
 
 ## Representative usage
 

@@ -1,7 +1,6 @@
 import asyncio
 import hashlib
 import logging
-import os
 from pathlib import Path
 
 import faiss
@@ -9,13 +8,12 @@ from langchain_community.docstore.in_memory import InMemoryDocstore
 from langchain_community.vectorstores import FAISS
 from langchain_huggingface import HuggingFaceEmbeddings
 import streamlit as st
+from storage.paths import research_memory_path
 
 
 logger = logging.getLogger(__name__)
-DEFAULT_MEMORY_PATH = Path(
-    # Preserve the legacy environment key so existing deployments keep their configured memory path.
-    os.environ.get("LINKMIND_MEMORY_PATH", Path(__file__).resolve().parents[2] / ".storage" / "research_memory")
-)
+# Backward-compatible import alias; operational defaults resolve dynamically below.
+DEFAULT_MEMORY_PATH = research_memory_path()
 _INDEXED_HASHES_KEY = "indexed_content_hashes"
 _INFLIGHT_INGESTIONS_KEY = "inflight_content_ingestions"
 
@@ -25,7 +23,7 @@ class MemoryLoadError(RuntimeError):
 
 
 def _memory_path(memory_path: str | Path | None = None) -> Path:
-    return Path(memory_path) if memory_path is not None else DEFAULT_MEMORY_PATH
+    return Path(memory_path) if memory_path is not None else research_memory_path()
 
 
 def _create_vector_store(embeddings):
