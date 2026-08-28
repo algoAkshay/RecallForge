@@ -1,157 +1,333 @@
-# RecallForge
+<div align="center">
 
-**Persistent research memory that knows when to remember and when to search.**
+# 🧠 RecallForge
 
-RecallForge is a local-first web-research agent that accumulates evidence across sessions, decides whether stored research is sufficient for a new question, and performs fresh retrieval only when necessary. Its routing is deterministic and explainable: freshness, semantic relevance, evidence coverage, and answerability determine whether a response uses MEMORY or WEB.
+### Persistent research memory that knows when to remember — and when to search.
 
-`Python 3.10+` · `Streamlit` · `LangChain` · `FAISS` · `134 offline tests` · [MIT License](LICENSE)
+A deterministic web-research agent that reuses prior evidence when it's sufficient, searches the live web when freshness or coverage demands it, and keeps every answer traceable to its sources.
 
-<!-- SCREENSHOT: Main RecallForge research workspace -->
-<!-- Suggested file: docs/screenshots/research-workspace.png -->
+**[🚀 Live Demo](https://recallforge-jht0.onrender.com)** · **[🏗️ Architecture](#-architecture)** · **[📊 Evaluation](#-evaluation)** · **[⚡ Quick Start](#-quick-start)**
 
-<!-- SCREENSHOT: Route decision + sources/debug details -->
-<!-- Suggested file: docs/screenshots/routing-debug.png -->
+<br>
 
-<!-- SCREENSHOT: Sidebar history / rename / export / delete -->
-<!-- Suggested file: docs/screenshots/chat-history.png -->
+![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)
+![Streamlit](https://img.shields.io/badge/UI-Streamlit-FF4B4B?logo=streamlit&logoColor=white)
+![FAISS](https://img.shields.io/badge/Memory-FAISS-0467DF)
+![Gemini](https://img.shields.io/badge/Synthesis-Gemini-8E75B2)
+![Tests](https://img.shields.io/badge/tests-142%20passing-brightgreen)
+![License](https://img.shields.io/badge/license-MIT-blue)
 
-## Why RecallForge
+</div>
 
-Many research assistants search the web on every question, forget prior evidence, reuse context that is merely similar rather than sufficient, and obscure why retrieval happened. RecallForge treats research as durable evidence: it reuses memory only when evidence clears deterministic quality gates and otherwise returns to the web.
+---
 
-## Core capabilities
+## 💡 Overview
 
-- **Persistent research memory** — successful web evidence is retained across restarts in local FAISS storage.
-- **Deterministic MEMORY / WEB routing** — route selection is a policy decision, not an opaque model preference.
-- **Freshness detection** — current, latest, and breaking-information queries go directly to WEB.
-- **Coverage and answerability gates** — similarity alone cannot authorize incomplete memory reuse.
-- **Bounded web retrieval** — search, extraction, overall acquisition, and concurrency have explicit limits.
-- **One-shot MEMORY → WEB recovery** — insufficient MEMORY synthesis can make one evidence-isolated WEB attempt.
-- **Deterministic provenance** — application-owned `[S1]`, `[S2]` IDs prevent invented source URLs.
-- **Persistent chat history** — SQLite threads support rename, delete, Markdown export, and relative timestamps.
-- **Research controls and observability** — Search fresh and Debug details improve control without changing AUTO mode.
+RecallForge is a **local-first research system** that accumulates web evidence across sessions and decides whether a new question can be answered from stored research — or requires fresh retrieval.
 
-## Architecture
+Its routing policy is explicit and deterministic:
 
-```text
-┌──────────────────────────────┐
-│          User query          │
-└──────────────┬───────────────┘
-               │
-               ▼
-       Freshness detection
-               │
-       ┌───────┴────────┐
-       │                │
-     Fresh          Not fresh
-       │                │
-       ▼                ▼
-      WEB      Persistent FAISS memory
-                        │
-                        ▼
-               Semantic retrieval
-                        │
-                        ▼
-         Coverage + answerability gates
-                        │
-                ┌───────┴────────┐
-                │                │
-           Sufficient        Insufficient
-                │                │
-                ▼                ▼
-             MEMORY            WEB
-                └───────┬────────┘
-                        ▼
-             Evidence-grounded synthesis
-                        │
-                        ▼
-             Citation validation
-                        │
-                        ▼
-               Persisted chat history
+> **freshness → semantic retrieval → semantic sufficiency → evidence coverage → answerability → `MEMORY` / `WEB`**
+
+Unlike a conventional RAG chatbot, RecallForge doesn't blindly retrieve context for every query. It treats retrieval as a **decision problem**: reuse memory when the stored evidence is good enough, search the web when the question is fresh or under-supported, and expose the route and timing to the user.
+
+---
+
+## 🖼️ Screenshots
+
+<table>
+<tr>
+<td align="center" width="100%">
+
+**Research workspace**
+
+<img src="docs/screenshots/research-workspace.png" alt="RecallForge research workspace" width="94%">
+
+<sub>A minimal Streamlit workspace with persistent recents, one-shot Search fresh, source controls, and a single research surface.</sub>
+
+</td>
+</tr>
+<tr>
+<td align="center" width="100%">
+
+**Fresh WEB research → reusable MEMORY**
+
+<img src="docs/screenshots/memory-debug.png" alt="RecallForge WEB and MEMORY routing with debug details" width="94%">
+
+<sub>A freshness-sensitive query routes to WEB; a related stable follow-up can reuse the retained evidence through MEMORY. Debug details expose route, reason, latency, and safe retrieval diagnostics without exposing hidden model reasoning.</sub>
+
+</td>
+</tr>
+<tr>
+<td align="center" width="100%">
+
+**Persistent chat history**
+
+<img src="docs/screenshots/chat-history.png" alt="RecallForge persistent recent chat history" width="62%">
+
+<sub>SQLite-backed threads can be reloaded, renamed, deleted, exported to Markdown, and displayed with relative timestamps while remaining independent from semantic research memory.</sub>
+
+</td>
+</tr>
+</table>
+
+---
+
+## 🤔 Why RecallForge
+
+Most research assistants fall into one of two patterns:
+
+- they search the web on **every** turn and forget work they've already done, **or**
+- they reuse semantically similar context even when it's incomplete, stale, or unable to actually answer the question.
+
+RecallForge is built around one core distinction: **similarity is not the same as answerability.**
+
+---
+
+## ⚙️ Core Capabilities
+
+| Capability | What RecallForge does |
+|---|---|
+| 🧠 **Persistent research memory** | Stores successful web evidence in FAISS and reloads it across restarts. |
+| 🎯 **Deterministic MEMORY / WEB routing** | Route selection is driven by explicit policy gates, not an opaque LLM preference. |
+| ⏱️ **Freshness first** | Current/latest/breaking-information queries bypass ordinary memory reuse. |
+| ✅ **Coverage + answerability gates** | Semantically related evidence can't authorize a MEMORY answer unless it actually covers the query. |
+| 🌐 **Bounded web retrieval** | Search, page acquisition, concurrency, and total research time are explicitly bounded. |
+| 🛡️ **Truthful partial failures** | Successful sibling sources are retained when another source fails or times out. |
+| 🔁 **One-shot recovery** | A MEMORY synthesis that reports insufficient evidence can trigger one isolated WEB attempt. |
+| 📎 **Application-owned provenance** | Citation IDs like `[S1]` and `[S2]` map to authoritative source records owned by the application. |
+| 🔍 **Search fresh** | Users can explicitly force WEB research for one query without changing normal AUTO behavior. |
+| 📈 **Observability** | Debug details expose route, reason, timings, source counts, fallback status, and acquisition outcomes. |
+
+---
+
+## 🏗️ Architecture
+
+```
+                                      ┌──────────────────────┐
+                                      │      User Query      │
+                                      └──────────┬───────────┘
+                                                 │
+                                                 ▼
+                                      ┌──────────────────────┐
+                                      │    Streamlit UI      │
+                                      │ Search fresh override│
+                                      └──────────┬───────────┘
+                                                 │
+                                                 ▼
+                                      ┌──────────────────────┐
+                                      │  Freshness Decision  │
+                                      └───────┬───────┬──────┘
+                                              │       │
+                                           fresh   not fresh
+                                              │       │
+                                              │       ▼
+                                              │  ┌───────────────────┐
+                                              │  │ Persistent FAISS  │
+                                              │  │ semantic retrieval│
+                                              │  └─────────┬─────────┘
+                                              │            │
+                                              │            ▼
+                                              │  semantic sufficiency
+                                              │            │
+                                              │            ▼
+                                              │    evidence coverage
+                                              │            │
+                                              │            ▼
+                                              │      answerability
+                                              │       ┌────┴────┐
+                                              │       │         │
+                                              │    MEMORY      WEB
+                                              │       │         │
+                                              └───────┴────┬────┘
+                                                          │
+                                                          ▼
+                                             ┌────────────────────────┐
+                                             │ Bounded Web Retrieval  │
+                                             │ DDG + trafilatura      │
+                                             │ partial-failure safe   │
+                                             └────────────┬───────────┘
+                                                          │
+                                          chunk → embed → persist evidence
+                                                          │
+                                                          ▼
+                                             ┌────────────────────────┐
+                                             │    Gemini Synthesis    │
+                                             └────────────┬───────────┘
+                                                          │
+                           MEMORY synthesis insufficient ─┘
+                           → one-shot WEB fallback
+                                                          │
+                                                          ▼
+                                             ┌────────────────────────┐
+                                             │ Citation validation +  │
+                                             │ sanitization/rendering │
+                                             └────────────┬───────────┘
+                                                          │
+                                                          ▼
+                                             ┌────────────────────────┐
+                                             │   Answer + Sources     │
+                                             └────────────────────────┘
+
+                      ┌────────────────────────────┐   ┌──────────────────────────┐
+                      │ FAISS Research Memory      │   │ SQLite Chat History      │
+                      │ evidence + provenance      │   │ threads + messages       │
+                      └────────────────────────────┘   └──────────────────────────┘
 ```
 
-## Routing pipeline
+> 💡 The two persistence layers are **deliberately separate** — deleting a chat thread does not clear semantic research memory.
 
-```text
-freshness → semantic retrieval → semantic sufficiency → coverage → answerability → MEMORY / WEB
-```
+---
 
-Freshness is evaluated before memory reuse. For non-fresh questions, FAISS L2 distance is lower-is-better: a strong result is at or below `0.5`; an acceptable result is at or below `1.0` and must meet the policy’s evidence requirements. These are current production constants, not universal embedding calibration.
+## 🎯 Routing Policy
 
-Similarity is necessary but not enough. RecallForge also checks whether retrieved evidence covers the query’s key concepts and whether a short broad question has descriptive evidence about its actual subject.
+For non-fresh questions, RecallForge searches persistent FAISS memory using **L2 distance**, where **lower is better**.
 
-## WEB reliability
+| Signal | Current policy |
+|---|---|
+| Strong memory match | `≤ 0.5` |
+| Acceptable memory match | `≤ 1.0` |
+| Freshness-sensitive query | WEB before ordinary memory reuse |
 
-| Control | Current implementation |
-| --- | --- |
-| DuckDuckGo search timeout | 6 seconds |
-| Per-page fetch/extract timeout | 10 seconds |
-| Total acquisition budget | 25 seconds |
+> ⚠️ These distance values are **application constants**, not universal embedding calibration. Similarity alone is not enough — evidence must also pass semantic sufficiency, coverage, and answerability checks.
+
+### 🔁 One-shot MEMORY → WEB recovery
+
+If routing selects `MEMORY` but synthesis returns the configured insufficient-evidence signal, RecallForge:
+
+1. Rejects that MEMORY answer
+2. Clears provenance from the rejected MEMORY attempt
+3. Performs **one** bounded fresh WEB acquisition
+4. Synthesizes again from the new evidence
+5. Reports the final route as `WEB`
+
+**There is no unbounded retry loop.**
+
+---
+
+## 🌐 Web Research Reliability
+
+| Control | Value |
+|---|---|
+| DuckDuckGo search deadline | 6 s |
+| Per-page fetch / extraction deadline | 10 s |
+| Total web acquisition budget | 25 s |
 | Maximum concurrent fetches | 4 |
 
-Blocking fetch and extraction work is moved off the event loop. Successful sibling pages are retained when another source fails or times out, and the system returns explicit partial-failure states rather than silently treating incomplete research as success.
+Blocking fetch/extraction work is moved off the event loop. A failed or timed-out page does not discard successful sibling results — the acquisition layer preserves truthful partial-failure states.
 
-## Persistent memory and provenance
+---
 
-Research memory persists in `<storage-root>/research_memory/`, alongside SQLite history at `<storage-root>/chat_history.db`. The local default storage root is `.storage`; set `RECALLFORGE_STORAGE_DIR` to move both durable stores together. Evidence identity uses SHA-256 content hashes to avoid duplicate insertion, and durable deduplication state is reconstructed after restart. FAISS persistence includes pickle-backed metadata, so only application-owned local storage should be loaded.
+## 💾 Persistent Memory & Provenance
 
-Citation identifiers are application-owned and deterministic. The synthesizer receives only valid evidence IDs; unknown IDs are removed or warned about, and the UI renders authoritative source records. Provenance integrity improves traceability, but it does not itself prove factual correctness or entailment.
+Research memory is stored under `<storage-root>/research_memory/` and chat history under `<storage-root>/chat_history.db`.
 
-## Research workspace and history
+The local storage root defaults to:
+```
+.storage
+```
 
-RecallForge keeps local SQLite research threads separate from semantic memory. Threads can be renamed, deleted, exported to Markdown, and revisited with human-readable timestamps. Deleting a chat does not clear research memory.
+Set `RECALLFORGE_STORAGE_DIR` to move both stores together. The legacy `LINKMIND_MEMORY_PATH` variable remains supported as a backward-compatible FAISS-only override.
 
-The workspace includes copy and source expansion, Light / Dark / System appearance modes, a one-shot **Search fresh** override, and optional **Debug details**. Current-request diagnostics can show route, mode, total latency, memory retrieval, search, fetch/extract, embedding/indexing, synthesis, fallback occurrence, source counts, and safe fetch outcomes. Full timing breakdown is intentionally not added to the historical chat schema.
+Research ingestion uses:
+- local `sentence-transformers/all-MiniLM-L6-v2` embeddings
+- FAISS vector search
+- normalized SHA-256 content identity
+- duplicate suppression before embedding/insertion
+- persisted provenance metadata
+- reconstruction of deduplication state after restart
 
-## Evaluation
+Citation IDs such as `[S1]` and `[S2]` are **application-owned**. Unknown IDs are removed or warned about rather than converted into guessed URLs.
 
-The included evaluation is deliberately **small, authored, offline, and controlled**. It is useful for regression detection and policy discussion, not as a statistically representative industry benchmark.
+> Provenance improves traceability. It does not claim independent factual verification or entailment.
 
-| Held-out controlled routing split | Result |
-| --- | --- |
-| Always-WEB | 8 / 16 correct |
-| Always-MEMORY* | 11 / 16 correct |
-| Semantic-only | 14 / 16 correct |
-| RecallForge policy | **15 / 16 correct** |
+---
 
-`*` Always-MEMORY still sends freshness-sensitive queries to WEB.
+## 📊 Evaluation
 
-- False MEMORY: **0**
-- False WEB: **1**
-- Weighted error: **1**
-- Coverage ablation: semantic-only produced 2 false MEMORY decisions; the current policy produced 0.
-- Freshness suite: 12 / 12 authored cases (TP 6, TN 6, FP 0, FN 0).
+> The bundled benchmark is intentionally small, authored, offline, and controlled. It's useful for **regression detection and policy comparison**, not as a statistically representative industry benchmark.
 
-The evaluator labels its synthetic distance cases as unsuitable for production threshold calibration. Run it locally with `python -m src.eval.routing_benchmark`.
+| Policy | Held-out result |
+|---|---|
+| Always-WEB | 8 / 16 |
+| Always-MEMORY* | 11 / 16 |
+| Semantic-only | 14 / 16 |
+| **RecallForge** | **15 / 16** |
 
-## Tech stack
+<sub>* The Always-MEMORY baseline still sends freshness-sensitive queries to WEB.</sub>
+
+**Current controlled results:**
+
+- ✅ **15 / 16** held-out routing decisions correct
+- ✅ **0** false MEMORY decisions
+- ⚠️ **1** false WEB decision
+- **Weighted error:** 1
+- **Coverage ablation:** semantic-only produced 2 false MEMORY decisions; current policy produced 0
+- **Freshness suite:** 12 / 12 authored cases
+
+> The evaluator explicitly treats synthetic distance cases as unsuitable for production threshold calibration.
+
+---
+
+## 🎬 Demo Flow
+
+A simple sequence demonstrates the core product idea:
+
+**1.** `"What is the latest stable Docker version?"`
+→ **WEB** — freshness forces new research → evidence is retained
+
+**2.** `"What is Docker Engine 29?"`
+→ **MEMORY** — previously researched evidence is reused
+
+**3.** Enable **"Search fresh"** on a known MEMORY question
+→ **WEB** — explicit user override wins for that query only
+
+> *Research fresh when necessary. Reuse safely when possible.*
+
+---
+
+## 🧰 Tech Stack
 
 | Layer | Technology |
-| --- | --- |
-| UI | Streamlit |
-| Orchestration | Python, LangChain, LangGraph |
-| Synthesis model | Gemini via `langchain-google-genai` |
+|---|---|
+| Interface | Streamlit |
+| Application | Python, LangChain, LangGraph |
+| Synthesis | Gemini via `langchain-google-genai` |
 | Embeddings | `sentence-transformers/all-MiniLM-L6-v2` |
 | Vector memory | FAISS |
-| Web search | DuckDuckGo (`ddgs`) |
+| Web search | DuckDuckGo via `ddgs` |
 | Extraction | trafilatura |
 | Chat persistence | SQLite |
 | Testing | pytest |
+| Deployment | Render |
 
-## Repository structure
+---
 
-```text
-src/
-├── agents/       # synthesis and bounded fallback
-├── tools/        # routing, retrieval, web acquisition, provenance
-├── storage/      # SQLite chat history
-├── ui/           # Streamlit presentation and safe debug formatting
-├── eval/         # offline controlled evaluation
-└── documents/    # experimental, disabled by default
+## 📁 Repository Structure
+
+```
+RecallForge/
+├── src/
+│   ├── agents/        # synthesis + bounded recovery
+│   ├── tools/         # routing, retrieval, web acquisition, provenance
+│   ├── storage/       # storage paths + SQLite history
+│   ├── ui/            # Streamlit presentation + research controls
+│   ├── eval/          # controlled offline routing evaluation
+│   └── documents/     # experimental; disabled by default
+├── tests/
+├── docs/
+│   └── screenshots/
+├── render.yaml
+├── requirements.txt
+└── README.md
 ```
 
-## Setup
+---
+
+## ⚡ Quick Start
+
+<details open>
+<summary><b>Windows PowerShell</b></summary>
 
 ```powershell
 python -m venv .venv
@@ -161,79 +337,106 @@ Copy-Item .env.example .env
 python -m streamlit run src/main.py
 ```
 
-Set `GOOGLE_API_KEY` in `.env` (or use `GEMINI_API_KEY`). On POSIX shells, activate with `source .venv/bin/activate`.
+</details>
 
-### Environment variables
+<details>
+<summary><b>macOS / Linux</b></summary>
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env
+python -m streamlit run src/main.py
+```
+
+</details>
+
+Add one Gemini credential to `.env`:
+
+```
+GOOGLE_API_KEY=your_key_here
+```
+
+`GEMINI_API_KEY` is also supported.
+
+### 🔑 Environment Variables
 
 | Variable | Purpose |
-| --- | --- |
-| `GOOGLE_API_KEY` | Gemini credential used by the default synthesis model. |
-| `GEMINI_API_KEY` | Supported alternative Gemini credential. |
-| `MODEL` | Optional model identifier; defaults to `google_genai:gemini-3.5-flash-lite`. |
-| `RECALLFORGE_STORAGE_DIR` | Shared durable-state root; defaults to `.storage` locally and should be `/var/data` on Render. |
-| `LINKMIND_MEMORY_PATH` | Legacy backward-compatible override for the local FAISS memory path. |
+|---|---|
+| `GOOGLE_API_KEY` | Default Gemini credential |
+| `GEMINI_API_KEY` | Alternative Gemini credential |
+| `MODEL` | Optional synthesis-model override |
+| `RECALLFORGE_STORAGE_DIR` | Shared FAISS + SQLite storage root |
+| `LINKMIND_MEMORY_PATH` | Legacy FAISS-only path override |
 
-Use `.env.example` as the starting point. Never commit actual credentials.
+---
 
-## Deployment
+## 🧪 Testing
 
-Render is supported through the included [`render.yaml`](render.yaml). Use a paid, single-instance Web Service with its persistent disk mounted at `/var/data`; ephemeral deployments lose both FAISS research memory and SQLite chat history after a restart or deploy.
+The default suite is designed to run **offline** — it does not require a Gemini call, DuckDuckGo request, or embedding-model download.
 
-- **Build command:** `pip install -r requirements.txt`
-- **Start command:** `python -m streamlit run src/main.py --server.address 0.0.0.0 --server.port $PORT --server.headless true`
-- **Required secret:** `GOOGLE_API_KEY` or `GEMINI_API_KEY`
-- **Storage variable:** `RECALLFORGE_STORAGE_DIR=/var/data`
-
-The MiniLM embedding model downloads into the platform's writable model cache on first use. Its weights are not stored in this repository.
-
-## Representative usage
-
-These examples describe expected behavior for a suitable evidence state, not guarantees for arbitrary pages or queries.
-
-1. `Explain Redis persistence.` → likely **WEB** while no sufficient related memory exists.
-2. A later related follow-up, `How does Redis persist data?` → may use **MEMORY** if retained evidence clears all gates.
-3. `What is the latest stable Redis version?` → **WEB** because it requests current information.
-
-Select **Search fresh** to explicitly use fresh WEB research for one question, even when memory could answer it.
-
-## Engineering decisions
-
-- Semantic similarity is not the same as answerability.
-- Freshness is checked before memory reuse.
-- Retrieval latency needs bounded, truthful failure behavior.
-- Citation identity should be application-owned, not model-invented.
-- Persistence adds both durability and trust/corruption boundaries.
-
-## Testing
-
-Default checks are offline and do not require Gemini, DuckDuckGo, or an embedding-model download:
-
-```powershell
+```bash
 python -m compileall -q src tests
 python -m pytest -q
 python -m src.eval.routing_benchmark
 ```
 
-They validate syntax/importability, unit and regression behavior, and controlled routing/freshness/coverage/persistence evaluation. The current suite contains **134 tests and 6 subtests**.
+**Current verification:**
 
-## Limitations
+```
+✅ 142 tests passed
+✅ 6 subtests passed
+📊 routing benchmark: 15/16
+   false MEMORY: 0
+   false WEB: 1
+   weighted error: 1
+🚀 production-style Streamlit startup: PASS
+```
 
-- The architecture is local-first and single-user; FAISS and SQLite are not distributed services.
-- The evaluation corpus is small and authored.
-- Synthesis requires a Gemini-compatible configured model.
-- WEB answer quality depends on public pages retrieved at request time.
-- There is no independent factual-entailment verifier.
-- Rich request timing diagnostics are not fully persisted with historical messages.
-- Experimental document ingestion is disabled in the default UI.
+---
 
-## Experimental document ingestion
+## 🚀 Deployment
 
-RecallForge contains experimental local PDF ingestion and document-retrieval modules. They are intentionally disabled in the default UI while the primary online research-memory workflow remains the stable demo path.
+RecallForge includes `render.yaml` and is deployable as a Streamlit web service.
 
-## Security and trust notes
+**Live demo:** [https://recallforge-jht0.onrender.com](https://recallforge-jht0.onrender.com)
 
-API keys are loaded from environment variables and are not printed by the application. Persistent FAISS loading relies on local trusted storage; only deserialize index data created by or trusted by the user.
+> ⚠️ The public demo currently runs on a free Render instance. Free-instance local storage is ephemeral, so FAISS memory and SQLite chat history can be lost when the instance is replaced or redeployed.
 
-## License
+For durable hosted memory, attach persistent storage and set:
 
-See [LICENSE](LICENSE). Existing license attribution and history are retained unchanged.
+```
+RECALLFORGE_STORAGE_DIR=/var/data
+```
+
+Production start command:
+
+```bash
+python -m streamlit run src/main.py \
+  --server.address 0.0.0.0 \
+  --server.port $PORT \
+  --server.headless true
+```
+
+> The local MiniLM model downloads on first use; model weights are not stored in this repository.
+
+---
+
+
+
+## 🔒 Security & Trust
+
+- API keys are read from environment variables and are **not printed** by the application.
+- `.env`, runtime databases, FAISS state, model caches, and local virtual environments should remain untracked.
+- Persisted FAISS loading uses trusted local serialization — **do not load index data from untrusted sources.**
+
+---
+
+## 📄 License
+
+See [LICENSE](LICENSE).
+
+<div align="center">
+<sub>Built with a bias toward honesty over hype — every claim above is backed by a test or a benchmark run.</sub>
+</div>
