@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🧠 RecallForge
+# RecallForge
 
 ### Persistent research memory that knows when to remember — and when to search.
 
